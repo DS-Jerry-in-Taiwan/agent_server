@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  agent-server:
+    build:
+      context: agent/.
+    container_name: agent-server
+    network_mode: host
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./img:/home/ubuntu/agent_server/img
+    environment:
+      - TZ=Asia/Taipei
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: agent-nginx
+    # network_mode: host
+    ports:
+      - "8080:80"
+    volumes:
+      - ./via/via-2.x.y/src:/usr/share/nginx/html/via/via-2.x.y/src:ro
+      - ./img:/usr/share/nginx/html/img:ro
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - agent-server
+    restart: unless-stopped

@@ -1,0 +1,15 @@
+#ignore images
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+*.svg
+*.ico
+*.webp
+*.psd
+*.ai
+*.eps
+*.indd
+.git
