@@ -13,3 +13,9 @@
 *.eps
 *.indd
 .git
+
+roi_configs/*
+*.tar.gz
+shell/*
+history/*
+tests/*
