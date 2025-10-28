@@ -55,7 +55,22 @@ ruamel.yaml.representer.RoundTripRepresenter.add_representer(
     FlowStyleList, represent_flow_style_list
 )
 
-@app.post("/api/update_roi_config/:config_name")
+@app.options("/api/update_roi_config/:config_name/:scenario")
+async def options_rtsp_snapshot_with_roi_url(request: Request):
+    print("[API] OPTIONS /rtsp_snapshot_with_roi_url 被調用", flush=True)
+    response = Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        },
+        description=""
+    )
+    return response
+
+
+@app.post("/api/update_roi_config/:config_name/:scenario")
 async def update_roi_config(request: Request):
     print("[API] /api/update_roi_config 被調用", flush=True)
     try:
@@ -72,7 +87,8 @@ async def update_roi_config(request: Request):
 
 
         # 從 URL 路徑取得 config 名稱
-        config_name = request.path_params.get("config_name", "infer_cfg_pphuman-1")
+        config_name = request.path_params.get("config_name", "")
+        scenario = request.path_params.get("scenario", "")
         print(f"DEBUG: 要更新的 config: {config_name}", flush=True)
         
         # 解析 ROI config
@@ -114,6 +130,14 @@ async def update_roi_config(request: Request):
         # === 用 ruamel.yaml 保留格式與順序 ===
         # 動態組合 YAML 路徑（根據 config_name）
         yaml_path = os.path.join(BASE_DIR, "roi_configs", f"{config_name}.yml")
+        
+        if not os.path.exists(yaml_path):
+            return add_cors_headers(Response(
+                description=json.dumps({"error": f"Config file not found: {config_name}.yml", "status": "failed"}),
+                status_code=404,
+                headers={"Content-Type": "application/json"}
+            ))
+        
         yaml = ruamel.yaml.YAML()
         yaml.indent(mapping=2, sequence=4, offset=2)
 
@@ -125,7 +149,7 @@ async def update_roi_config(request: Request):
             data["Region"] = {}
         if "scenario" not in data["Region"]:
             data["Region"]["scenario"] = {}
-        data["Region"]["scenario"]["1F-frontstore"] = roi_data
+        data["Region"]["scenario"][scenario] = roi_data
 
         with open(yaml_path, "w", encoding="utf-8") as f:
             yaml.dump(data, f)
@@ -169,16 +193,34 @@ async def rtsp_snapshot_with_roi_url(request: Request):
     try:
         body = request.json() if request.body else {}
         rtsp_url = body.get("rtsp_url")
+        roi_config_name = body.get("roi_config_name")
+        scenario = body.get("scenario")
+
         if not rtsp_url:
             return add_cors_headers(Response(
                 description=json.dumps({"error": "Missing rtsp_url", "status": "failed"}),
                 status_code=400,
                 headers={"Content-Type": "application/json"}
             ))
+            
+        if not roi_config_name:
+            return add_cors_headers(Response(
+                description=json.dumps({"error": "Missing roi-config-name", "status": "failed"}),
+                status_code=400,
+                headers={"Content-Type": "application/json"}
+            ))
+            
+        if not scenario:
+            return add_cors_headers(Response(
+                description=json.dumps({"error": "Missing scenario", "status": "failed"}),
+                status_code=400,
+                headers={"Content-Type": "application/json"}
+            ))
+
         container = av.open(rtsp_url, options={"rtsp_transport": "tcp"})
         video_stream = container.streams.video[0]
-        warmup_frames = 10  # 丟棄前10幀
-        max_attempts = 30
+        warmup_frames = 70  # 丟棄前10幀
+        max_attempts = 120
         frame = None
         skipped = 0
 
@@ -220,7 +262,13 @@ async def rtsp_snapshot_with_roi_url(request: Request):
 
        # 用 NGINX 對外 base URL 組合圖片網址與 ROI 編輯頁網址
         img_url = f"{NGINX_BASE_URL}/img/{filename}"
+
+        # 構建 ROI 編輯頁 URL，加入 roi_config_name 和 scenario 參數
         roi_edit_url = f"{NGINX_BASE_URL}/via/?screenshot_url={img_url}"
+        if roi_config_name:
+            roi_edit_url += f"&roi_config_name={roi_config_name}"
+        if scenario:
+            roi_edit_url += f"&scenario={scenario}"
 
         response_data = {
             "img_url": img_url,
