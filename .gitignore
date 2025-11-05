@@ -19,3 +19,5 @@ roi_configs/*
 shell/*
 history/*
 tests/*
+img/*
+*roi_panel_element
