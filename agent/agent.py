@@ -11,7 +11,10 @@ import av
 import os
 import mimetypes
 from datetime import datetime
+from dotenv import load_dotenv
 import uuid  # 用於生成唯一檔案名稱
+
+load_dotenv()
 
 # 初始化 Robyn 應用
 app = Robyn(__file__)

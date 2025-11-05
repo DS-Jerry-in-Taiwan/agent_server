@@ -11,7 +11,7 @@ services:
     volumes:
       - ./img:/home/ubuntu/agent-server-roi/img
       - ./via:/home/ubuntu/agent-server-roi/via
-      - ${roi_config_dir}:/home/ubuntu/agent-server-roi/roi_configs
+      - ${ROI_CONFIG_DIR}:/home/ubuntu/agent-server-roi/roi_configs
     environment:
       - TZ=Asia/Taipei
     restart: unless-stopped
